@@ -1,0 +1,3 @@
+carne 
+pesce 
+uova

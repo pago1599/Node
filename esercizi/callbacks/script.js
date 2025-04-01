@@ -1,6 +1,8 @@
 import * as fs from "node:fs";
 
-fs.readFile("file.txt", { encoding: "utf-8" }, function (error, data) {
+const data = "Ciao";
+
+fs.writeFile("file.txt", data, (error) => {
   if (error) {
     console.error(error);
     return;
