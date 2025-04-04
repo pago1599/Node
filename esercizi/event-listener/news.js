@@ -23,3 +23,15 @@ function createNewsFeed() {
 }
 
 const newsFeed = createNewsFeed();
+
+newsFeed.on("newsEvent", (data) => {
+  console.log(`[News] ${data}`);
+});
+
+newsFeed.on("breakingNews", (data) => {
+  console.log(`[Breaking] ${data}`);
+});
+
+newsFeed.on("error", (err) => {
+  console.error(`[Error] ${err.message}`);
+});
