@@ -1,11 +1,15 @@
-import * as fs from "node:fs";
+/* Create a script that uses the Node.js core fs.writeFile() (callback API) method to write a text file. The documentation for this method is on the Node.js File system page. */
 
-const data = "Ciao";
+import { writeFile } from "node:fs";
 
-fs.writeFile("file.txt", data, (error) => {
+const data = "Fabio Artudi 25";
+
+writeFile("file.txt", data, "utf-8", (error) => {
   if (error) {
-    console.error(error);
+    console.error("Si è verificato un errore:", error);
     return;
   }
-  console.log(data);
+  console.log("Contenuto del file:", data);
 });
+
+console.log("Avvio script...");
