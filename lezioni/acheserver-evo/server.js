@@ -23,8 +23,8 @@ const userDataPlugin = fp(async function (fastify, options) {
       const data = await fs.readFile(userFilePath, "utf-8");
       return JSON.parse(data);
     } catch (error) {
-      if (err.code === "ENOENT") return null;
-      throw err;
+      if (error.code === "ENOENT") return null;
+      throw error;
     }
   });
 
