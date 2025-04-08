@@ -107,7 +107,7 @@ fastify.register(
       // verifichaimo che l'id del parametro corrisponda all'id del body
       if (newUserData.id && newUserData !== id) {
         reply.code(400).send({
-          errro: "Id utente nel body non corrisponde all'id del percorso",
+          error: "Id utente nel body non corrisponde all'id del percorso",
         });
       }
 
@@ -125,6 +125,29 @@ fastify.register(
         message: existingUser ? "Utente aggiornato" : "Utente creato",
         user: newUserData,
       });
+    });
+    fastify.delete("/users/:id", async (request, reply) => {
+      const { id } = request.params;
+      const userFilePath = path.join(__dirname, "data", `user_${id}.json`); // pathsistema_progetto/data/user_123.json
+
+      try {
+        await fs.access(userFilePath);
+      } catch (error) {
+        if (error.code === "ENOENT") {
+          reply.code(404);
+          return {
+            error: "Utente non trovato",
+          };
+        }
+        throw error;
+      }
+
+      await fs.unlink(userFilePath);
+
+      return {
+        success: true,
+        message: `Utente ${id} eliminato con successo`,
+      };
     });
   },
   {
