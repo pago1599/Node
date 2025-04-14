@@ -4,11 +4,17 @@ const fastify = require("fastify")({
 const fs = require("fs/promises");
 const path = require("path");
 const fp = require("fastify-plugin");
+const { request } = require("http");
 
 fastify.register(require("@fastify/cors"), {
   origin: "*",
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
+});
+
+fastify.register(require("@fastify/postgres"), {
+  connectionString:
+    "postgres://postgres:postgresmyapp@localhost:5432/restaurant",
 });
 
 const userDataPlugin = fp(async function (fastify, options) {
@@ -101,6 +107,7 @@ fastify.register(
         users,
       };
     });
+
     fastify.post("/users/:id", async (request, reply) => {
       const { id } = request.params; // id passato nell'url
       const newUserData = request.body;
@@ -126,6 +133,7 @@ fastify.register(
         user: newUserData,
       });
     });
+
     fastify.delete("/users/:id", async (request, reply) => {
       const { id } = request.params;
       const userFilePath = path.join(__dirname, "data", `user_${id}.json`); // pathsistema_progetto/data/user_123.json
@@ -148,6 +156,93 @@ fastify.register(
         success: true,
         message: `Utente ${id} eliminato con successo`,
       };
+    });
+
+    fastify.get("/clienti", async (request, reply) => {
+      try {
+        const { rows } = await fastify.pg.query("SELECT * FROM clienti");
+        return {
+          clienti: rows,
+        };
+      } catch (error) {
+        reply.log.error(err);
+        reply.code(500).send({ error: "Errore DB" });
+      }
+    });
+
+    fastify.get("/clienti/:id", async (request, reply) => {
+      const { id } = request.params;
+      const { rows } = await fastify.pg.query(
+        "SELECT * FROM clienti WHERE id = $1",
+        [id]
+      );
+      return rows[0] || reply.code(404).send({ error: "Cliente non trovato" });
+    });
+
+    fastify.post("/clienti", async (request, reply) => {
+      const { nome, telefono, email } = request.body;
+      const { rows } = await fastify.pg.query(
+        "INSERT INTO clienti (nome, telefono, email) VALUES ($1, $2, $3) RETURNING *",
+        [nome, telefono, email]
+      );
+      return rows[0];
+    });
+
+    fastify.get("/clienti/search/:q", async (request, reply) => {
+      const { q } = request.params;
+      const { rows } = await fastify.pg.query(
+        "SELECT * FROM clienti WHERE nome LIKE $1 OR email LIKE $1",
+        [`%${q}%`]
+      );
+      return rows;
+    });
+
+    fastify.get("/prenotazioni", async (request, reply) => {
+      const { rows } = await fastify.pg.query(`
+        SELECT p.id, c.nome AS cliente, t.numero AS tavolo, p.data, p.numero_persone, p.note 
+        FROM prenotazioni AS p
+        JOIN clienti AS c ON c.id = p.cliente_id
+        JOIN tavoli AS t ON t.id = p.tavolo_id
+        ORDER BY p.data DESC
+        `);
+      return rows;
+    });
+
+    fastify.post("/prenotazioni", async (request, reply) => {
+      const { cliente_id, tavolo_id, data, numero_persone, note } =
+        request.body;
+      const { rows } = await fastify.pg.query(
+        `
+          INSERT INTO prenotazioni (cliente_id, tavolo_id, data, numero_persone, note) VALUES ($1, $2, $3, $4, $5) RETURNING *
+          `,
+        [cliente_id, tavolo_id, data, numero_persone, note]
+      );
+      return rows;
+    });
+
+    fastify.get("/ordini", async (request, reply) => {
+      const { rows } = await fastify.pg.query(`
+        SELECT o.id, o.data, o.stato, t.numero AS tavolo, c.nome AS cameriere
+        FROM ordini AS o
+        JOIN tavoli AS t on t.id = o.tavolo_id
+        JOIN camerieri AS c ON c.id = o.cameriere_id
+        ORDER BY o.data DESC
+        `);
+
+      for (const row of rows) {
+        const { id: ordine_id } = row;
+        const { rows: dettagli } = await fastify.pg.query(
+          `
+          SELECT p.nome, p.prezzo, d.*
+          FROM dettagli_ordini AS d
+          JOIN piatti AS p ON p.id = d.piatto_id
+          WHERE ordine_id = $1
+          `,
+          [ordine_id]
+        );
+        row.dettagli = dettagli;
+      }
+      return rows;
     });
   },
   {
