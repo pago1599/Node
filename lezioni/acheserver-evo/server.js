@@ -7,6 +7,7 @@ const fp = require("fastify-plugin");
 const { request } = require("http");
 
 fastify.register(require("@fastify/cors"), {
+  // cross origin request
   origin: "*",
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],

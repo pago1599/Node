@@ -12,20 +12,21 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteById = exports.updateById = exports.create = exports.getOneById = exports.getAll = void 0;
+exports.createImage = exports.deleteById = exports.updateById = exports.create = exports.getOneById = exports.getAll = void 0;
 const joi_1 = __importDefault(require("joi"));
 const pg_promise_1 = __importDefault(require("pg-promise"));
 const planetSchema = joi_1.default.object({
     name: joi_1.default.string().required(),
 });
-const db = (0, pg_promise_1.default)()("postgres://postgres:postgresmyapp@localhost:5433/planets");
+const db = (0, pg_promise_1.default)()("postgres://postgres:postgresmyapp@localhost:5432/planets");
 const setupDb = () => __awaiter(void 0, void 0, void 0, function* () {
     yield db.none(`
     DROP TABLE IF EXISTS planets;
     
     CREATE TABLE planets (
     id SERIAL NOT NULL PRIMARY KEY,
-    name TEXT NOT NULL
+    name TEXT NOT NULL,
+    image TEXT 
     );
     `);
     yield db.none(`INSERT INTO planets (name) VALUES ('Earth')`);
@@ -33,7 +34,7 @@ const setupDb = () => __awaiter(void 0, void 0, void 0, function* () {
 });
 setupDb();
 const getAll = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const planets = yield db.many(`SELECT * FROM planets`);
+    const planets = yield db.manyOrNone(`SELECT * FROM planets`);
     res.status(200).json(planets);
 });
 exports.getAll = getAll;
@@ -73,4 +74,17 @@ const deleteById = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     res.status(200).json({ msg: "The planet was deleted" });
 });
 exports.deleteById = deleteById;
+const createImage = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    const { id } = req.params;
+    const fileName = (_a = req.file) === null || _a === void 0 ? void 0 : _a.path;
+    if (fileName) {
+        db.none(`UPDATE planets SET image=$2 WHERE id=$1`, [id, fileName]);
+        res.status(201).json({ msg: "Planet image uploaded successfully." });
+    }
+    else {
+        res.status(400).json({ msg: "Planet image failed to upload." });
+    }
+});
+exports.createImage = createImage;
 //# sourceMappingURL=planets.js.map
