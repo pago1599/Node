@@ -1,10 +1,12 @@
 const fastify = require("fastify")({
   logger: true,
 });
-const fs = require("fs/promises");
+const fs = require("node:fs");
 const path = require("path");
 const fp = require("fastify-plugin");
 const { request } = require("http");
+const { pipeline } = require("node:stream/promises");
+const bcrypt = require("bcrypt");
 
 fastify.register(require("@fastify/cors"), {
   // cross origin request
@@ -13,16 +15,31 @@ fastify.register(require("@fastify/cors"), {
   allowedHeaders: ["Content-Type", "Authorization"],
 });
 
+fastify.register(require("@fastify/static"), {
+  root: path.join(process.cwd(), "uploads"),
+  prefix: "/uploads/",
+});
+
+fastify.register(require("./plugins/jwt"));
+
 fastify.register(require("@fastify/postgres"), {
   connectionString:
     "postgres://postgres:postgresmyapp@localhost:5432/restaurant",
 });
 
+fastify.register(require("@fastify/multipart"));
+
 const userDataPlugin = fp(async function (fastify, options) {
   const dataDir = path.join(__dirname, "data");
-  await fs.mkdir(dataDir, {
-    recursive: true,
-  });
+  await fs.mkdir(
+    dataDir,
+    {
+      recursive: true,
+    },
+    (err) => {
+      if (err) throw err;
+    }
+  );
 
   fastify.decorate("getUserData", async function (userId) {
     const userFilePath = path.join(dataDir, `user_${userId}.json`);
@@ -245,6 +262,83 @@ fastify.register(
       }
       return rows;
     });
+
+    fastify.post("/upload", async (request, reply) => {
+      const data = await request.file();
+      const ext = path.extname(data.filename);
+      const name = path.basename(data.filename, ext);
+      const timestamp = Date.now();
+      const filename = `${name}-${timestamp}${ext}`;
+      const filepath = path.join(__dirname, "uploads", filename);
+
+      await pipeline(data.file, fs.createWriteStream(filepath));
+
+      const url = `/uploads/${filename}`;
+
+      reply.send({ file: url });
+    });
+
+    fastify.post("/register", async (request, reply) => {
+      const { email, password } = request.body;
+
+      if (!email || !password) {
+        reply.code(400).send({
+          error: "Email e password sono obbligatori per la registrazione",
+        });
+      }
+
+      const hash = await bcrypt.hash(password, 10);
+
+      const { rows } = await fastify.pg.query(
+        `INSERT INTO users (email, password) VALUES ($1, $2) RETURNING *`,
+        [email, hash]
+      );
+
+      return rows[0];
+    });
+
+    fastify.post("/login", async (request, reply) => {
+      const { email, password } = request.body;
+
+      if (!email || !password) {
+        reply.code(400).send({
+          error: "Email e password sono obbligatori per il login",
+        });
+      }
+
+      const { rows } = await fastify.pg.query(
+        `SELECT * FROM users WHERE email = $1 LIMIT 1`,
+        [email]
+      );
+
+      if (rows.length === 0) {
+        reply.code(401).send({ error: "Credenziali non valide" });
+      }
+
+      const user = rows[0];
+      const passwordCompare = await bcrypt.compare(password, user.password);
+
+      if (!passwordCompare) {
+        reply.code(401).send({ error: "Credenziali non valide" });
+      }
+
+      const token = fastify.jwt.sign({
+        id: user.id,
+        email: user.email,
+      });
+
+      reply.send({ token });
+    });
+
+    /*  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJwYXlvYXJ0dWRpQGhvdG1haWwuaXQiLCJpYXQiOjE3NDQ5NjI4MTl9.gf5q1EBgWy_c7HITjsM-Bcy1I8cqP_ezaHYZ5uV8FS8 */
+
+    fastify.get(
+      "/me",
+      { preHandler: [fastify.authenticate] },
+      async (request) => {
+        return { user: request.user };
+      }
+    );
   },
   {
     prefix: "/api",
