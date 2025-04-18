@@ -1,30 +1,10 @@
 import Joi from "joi";
 import { Request, Response } from "express";
-import pgPromise from "pg-promise";
+import { db } from "./../db";
 
 const planetSchema = Joi.object({
   name: Joi.string().required(),
 });
-
-const db = pgPromise()(
-  "postgres://postgres:postgresmyapp@localhost:5432/planets"
-);
-
-const setupDb = async () => {
-  await db.none(`
-    DROP TABLE IF EXISTS planets;
-    
-    CREATE TABLE planets (
-    id SERIAL NOT NULL PRIMARY KEY,
-    name TEXT NOT NULL,
-    image TEXT 
-    );
-    `);
-
-  await db.none(`INSERT INTO planets (name) VALUES ('Earth')`);
-  await db.none(`INSERT INTO planets (name) VALUES ('Mars')`);
-};
-setupDb();
 
 const getAll = async (req: Request, res: Response) => {
   const planets = await db.manyOrNone(`SELECT * FROM planets`);
