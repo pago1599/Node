@@ -49,13 +49,13 @@ const dotenv = __importStar(require("dotenv"));
 dotenv.config();
 const passport_1 = __importDefault(require("passport"));
 const passport_jwt_1 = __importDefault(require("passport-jwt"));
-const db_1 = require("./db");
+const db_js_1 = require("./db.js");
 const { SECRET } = process.env;
 passport_1.default.use(new passport_jwt_1.default.Strategy({
     secretOrKey: SECRET,
     jwtFromRequest: passport_jwt_1.default.ExtractJwt.fromAuthHeaderAsBearerToken(),
 }, (payload, done) => __awaiter(void 0, void 0, void 0, function* () {
-    const user = db_1.db.one(`SELECT * FROM users WHERE id=$1`, payload.id);
+    const user = db_js_1.db.one(`SELECT * FROM users WHERE id=$1`, payload.id);
     console.log(user);
     try {
         return user ? done(null, user) : done(new Error("User not found"));

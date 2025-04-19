@@ -9,8 +9,9 @@ require("express-async-errors");
 const morgan_1 = __importDefault(require("morgan"));
 const planets_js_1 = require("./controllers/planets.js");
 const users_js_1 = require("./controllers/users.js");
-const users_js_2 = require("./controllers/users.js");
+const authorize_js_1 = __importDefault(require("./authorize.js"));
 const multer_1 = __importDefault(require("multer"));
+require("./passport.js");
 const storage = multer_1.default.diskStorage({
     destination: (req, file, cb) => {
         cb(null, "./uploads");
@@ -33,7 +34,8 @@ app.put("/api/planets/:id", planets_js_1.updateById);
 app.delete("/api/planets/:id", planets_js_1.deleteById);
 app.post("/api/planets/:id/image", upload.single("image"), planets_js_1.createImage);
 app.post("/api/users/login", users_js_1.logIn);
-app.post("/api/users/signup", users_js_2.signUp);
+app.post("/api/users/signup", users_js_1.signUp);
+app.get("/api/users/logout", authorize_js_1.default, users_js_1.logOut);
 app.listen(port, () => {
     console.log(`Express app listening on port http://localhost:${port}`);
 });
