@@ -16,7 +16,7 @@ const setupDb = async () => {
 
     DROP TABLE IF EXISTS users;
 
-    CRATE TABLE users (
+    CREATE TABLE users (
     id SERIAL NOT NULL PRIMARY KEY,
     username TEXT NOT NULL,
     password TEXT NOT NULL,
